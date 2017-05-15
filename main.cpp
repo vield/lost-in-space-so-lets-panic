@@ -10,8 +10,8 @@ int main(int argc, char *argv[])
     Options options;
     getProgramOptions(&options, argc, argv);
 
-    readFile(options.fileName);
-    findAnagrams(options.anagram);
+    Tree tree{options.fileName};
+    findAnagrams(tree, options.anagram);
 
     return 0;
 }

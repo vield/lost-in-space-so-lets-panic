@@ -3,6 +3,9 @@
 
 #include <string>
 
-void findAnagrams(std::string anagram);
+#include "tree.h"
+
+
+void findAnagrams(Tree &tree, std::string anagram);
 
 #endif
