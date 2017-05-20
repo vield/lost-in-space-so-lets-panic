@@ -1,10 +1,11 @@
 #include <iostream>
 #include <algorithm>
 #include <cstdlib>
-#include <stdexcept>
 #include <map>
-#include <string>
+#include <queue>
 #include <set>
+#include <stdexcept>
+#include <string>
 
 #include "ArgumentParser.h"
 
@@ -12,29 +13,90 @@
 /**
     Define a parameter to parse.
 
-    @name   Identifier for the parameter. If the name starts with a dash ("-"),
+    @name  Identifier for the parameter. If the name starts with a dash ("-"),
     it is interpreted as a named parameter (e.g. "./your_program --fileName
     input.txt"), otherwise it is added to the positional parameter list.
+    @optional  If the parameter is required, parseArguments() will fail if
+    it isn't present.
+    @numValues  How many values the parameter should get. If this is zero, the
+    named parameter is interpreted as a boolean flag.
 */
-void ArgumentParser::addArgument(std::string name, bool optional)
+void ArgumentParser::addArgument(std::string name, bool optional, unsigned int numValues)
 {
     bool isNamed = name.find("-") == 0;
 
-    std::vector<std::string> emptyVector;
-    m_parsedValues.insert(std::pair<std::string, std::vector<std::string>>(name, emptyVector));
+    Argument argument{name, optional, numValues};
 
+    // FIXME Currently, if the same parameter is added twice or more, only
+    // the first one is stored and the rest are ignored. We should return an
+    // error message instead / throw an exception / whatever is appropriate.
     if (isNamed)
     {
         m_namedArgs.insert(name);
-        Argument argument{name, optional};
-        m_namedArgsSettings.insert(std::pair<std::string, Argument>(
-            name, argument
-        ));
+        m_arguments.insert(std::make_pair(name, argument));
     }
     else
     {
+        if (numValues == 0)
+        {
+            throw std::invalid_argument("Positional argument must take at least one value!");
+        }
         m_positionalArgs.push_back(name);
+        m_arguments.insert(std::make_pair(name, argument));
     }
+}
+
+
+/**
+    This method pops all values belonging to the named argument from the
+    queue (and returns false if that cannot be done).
+*/
+bool ArgumentParser::_parseValues(std::string argName, std::queue<std::string> &args)
+{
+    Argument argument = m_arguments.find(argName)->second;
+    unsigned int numValues = argument.getNumValues();
+
+    std::pair<std::string, std::vector<std::string>> parsedValues =
+        std::make_pair(argName, std::vector<std::string>{});
+
+    std::vector<std::string> &values = parsedValues.second;
+
+    while (!args.empty() && numValues > 0)
+    {
+        values.push_back(args.front());
+        args.pop();
+        --numValues;
+    }
+
+    if (numValues > 0)
+    {
+        // Could not read enough values, error
+        return false;
+    }
+
+    // FIXME what if named arg is given multiple times? What should be the
+    // expected behaviour?
+    m_parsedValues.insert(parsedValues);
+
+    return true;
+}
+
+
+bool ArgumentParser::_checkAllRequiredParamsGiven()
+{
+    for (const auto &arg : m_arguments)
+    {
+        Argument argument = arg.second;
+        if (!argument.isOptional())
+        {
+            bool argumentWasGiven = (
+                m_parsedValues.find(argument.getLongOptionName())
+                != m_parsedValues.end()
+            );
+            if (!argumentWasGiven) return false;
+        }
+    }
+    return true;
 }
 
 
@@ -53,82 +115,48 @@ void ArgumentParser::addArgument(std::string name, bool optional)
 */
 ArgumentParser& ArgumentParser::parseArguments(int argc, char *argv[])
 {
-    // Skip program name
-    int current = 1;
+    bool exitOnError = true;
 
-    // At the end, we'll check if all required arguments were received
     bool valid = true;
+    // TODO split into functions
 
-    // Currently, all params are expected to take exactly one argument.
-    // FIXME Add option to specify 0, 5, '+', '*' etc arguments
-
-    bool inNamedArgs = true;
-
-    unsigned int nextPosArg = 0;
-
-    // Parse named arguments
-    while (current < argc)
+    // Convert the whole thing to a queue of strings instead, so we don't
+    // have to pass argc around
+    std::queue<std::string> args;
+    for (int i = 1; i < argc; ++i)
     {
-        // Check if next arg is named
-        std::string currentParam{argv[current]};
-        // If we're doing positional args, no named args may follow any more
-        inNamedArgs = inNamedArgs && m_namedArgs.find(currentParam) != m_namedArgs.end();
-
-        // If parsing named args
-        if (inNamedArgs)
-        {
-            m_parsedKeys.push_back(currentParam);
-            ++current;
-            if (current >= argc)
-            {
-                std::cout << "named\n";
-                valid = false;
-                break;
-            }
-            std::string currentVal = std::string{argv[current]};
-            m_parsedValues[currentParam] = std::vector<std::string>{currentVal};
-            ++current;
-
-        }
-        // If parsing positional args
-        else
-        {
-
-            if (nextPosArg >= m_positionalArgs.size())
-            {
-                std::cout << "bleep\n";
-                valid = false;
-                break;
-            }
-
-            std::string posArgName = m_positionalArgs.at(nextPosArg);
-            m_parsedKeys.push_back(posArgName);
-
-            m_parsedValues[posArgName] = std::vector<std::string>{currentParam};
-            ++nextPosArg;
-            ++current;
-        }
+        args.push(std::string{argv[i]});
     }
 
-    // Check if all positional args were found
-    if (nextPosArg != m_positionalArgs.size())
+    // First, parse named args
+    while (valid && !args.empty() && m_namedArgs.find(args.front()) != m_namedArgs.end())
     {
-        std::cout << "pos args missing\n";
-        valid = false;
+        std::string argName = args.front();
+        args.pop();
+        valid = _parseValues(argName, args);
     }
 
-    // Check if all required args were included
-    /*
-    for (const auto &namedArg : m_namedArgs)
+    // Then, parse positional args
+    for (const auto &argName : m_positionalArgs)
     {
-        if (!m_namedArgsSettings.find(namedArg)->second->optional)
+        if (!valid || args.empty())
         {
-            if
+            break;
         }
-    }*/
+
+        valid = _parseValues(argName, args);
+    }
+
+    // Finally, check that all required params have been specified
+    // TODO
+    valid = _checkAllRequiredParamsGiven();
 
     if (!valid)
-        printUsageMessage(argc, argv);
+    {
+        std::string programName{argv[0]};
+        printUsageMessage(programName);
+        if (exitOnError) exit(1);
+    }
 
     return *this;
 }
@@ -197,23 +225,21 @@ std::string Argument::getVarName(const std::string argName) const
 
 
 
-void ArgumentParser::printUsageMessage(int argc, char *argv[]) const
+void ArgumentParser::printUsageMessage(std::string programName) const
 {
-    // Silence warning about unused param
-    (void)argc;
-
-    char *programName = argv[0];
-
     std::cout << "Usage: " << programName;
 
     for (const auto &name : m_namedArgs)
     {
-        Argument argument = m_namedArgsSettings.find(name)->second;
+        Argument argument = m_arguments.find(name)->second;
         bool optional = argument.isOptional();
 
         std::cout << " " << (optional ? "[" : "");
         std::cout << argument.getLongOptionName();
-        std::cout << " " << argument.getVarName();
+        for (unsigned int i = 0; i < argument.getNumValues(); ++i)
+        {
+            std::cout << " " << argument.getVarName();
+        }
         std::cout << (optional ? "]" : "");
     }
 
