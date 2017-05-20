@@ -49,7 +49,7 @@ private:
 public:
     ArgumentParser()
     {
-        this->addArgument("--help", true);
+        this->addArgument("--help", true, 0);
     }
     void addArgument(
         std::string name,

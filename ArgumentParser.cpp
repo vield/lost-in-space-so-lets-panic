@@ -84,6 +84,18 @@ bool ArgumentParser::_parseValues(std::string argName, std::queue<std::string> &
 
 bool ArgumentParser::_checkAllRequiredParamsGiven()
 {
+    for (const auto &arg : m_arguments)
+    {
+        Argument argument = arg.second;
+        if (!argument.isOptional())
+        {
+            bool argumentWasGiven = (
+                m_parsedValues.find(argument.getLongOptionName())
+                != m_parsedValues.end()
+            );
+            if (!argumentWasGiven) return false;
+        }
+    }
     return true;
 }
 
@@ -103,6 +115,8 @@ bool ArgumentParser::_checkAllRequiredParamsGiven()
 */
 ArgumentParser& ArgumentParser::parseArguments(int argc, char *argv[])
 {
+    bool exitOnError = true;
+
     bool valid = true;
     // TODO split into functions
 
@@ -141,6 +155,7 @@ ArgumentParser& ArgumentParser::parseArguments(int argc, char *argv[])
     {
         std::string programName{argv[0]};
         printUsageMessage(programName);
+        if (exitOnError) exit(1);
     }
 
     return *this;
@@ -221,7 +236,10 @@ void ArgumentParser::printUsageMessage(std::string programName) const
 
         std::cout << " " << (optional ? "[" : "");
         std::cout << argument.getLongOptionName();
-        std::cout << " " << argument.getVarName();
+        for (unsigned int i = 0; i < argument.getNumValues(); ++i)
+        {
+            std::cout << " " << argument.getVarName();
+        }
         std::cout << (optional ? "]" : "");
     }
 
