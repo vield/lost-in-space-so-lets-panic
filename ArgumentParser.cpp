@@ -38,37 +38,118 @@ void ArgumentParser::addArgument(std::string name, bool optional)
 }
 
 
+/**
+    Parse arguments.
+
+    If the given arguments are not valid (e.g. not all required arguments
+    were given), this will print the usage message, but the program will
+    currently not terminate and no exception will be thrown.
+
+    TODO: Exceptions or exit(errorCode) as options for the ArgumentParser.
+
+    @argc  Number of arguments given.
+    @argv  Arguments. First one is the path to the program or the program name.
+           Any arguments following that will be parsed.
+*/
 ArgumentParser& ArgumentParser::parseArguments(int argc, char *argv[])
 {
-    int ctr = 1;
+    // Skip program name
+    int current = 1;
 
-    // Need to actually compare this with the configured number of required params
-    if (argc == 1)
-    {
-        this->printUsageMessage(argc, argv);
-        return *this;
-        //exit(1);
-    }
+    // At the end, we'll check if all required arguments were received
+    bool valid = true;
 
-    for (int i = 0; i < m_positionalArgs.size(); ++i)
+    // Currently, all params are expected to take exactly one argument.
+    // FIXME Add option to specify 0, 5, '+', '*' etc arguments
+
+    bool inNamedArgs = true;
+
+    int nextPosArg = 0;
+
+    // Parse named arguments
+    while (current < argc)
     {
-        if (ctr >= argc)
+        // Check if next arg is named
+        std::string currentParam{argv[current]};
+        // If we're doing positional args, no named args may follow any more
+        inNamedArgs = inNamedArgs && m_namedArgs.find(currentParam) != m_namedArgs.end();
+
+        // If parsing named args
+        if (inNamedArgs)
         {
-            this->printUsageMessage(argc, argv);
-            //exit(1);
+
+            std::cout << "Processing argument:\n";
+            std::cout << argv[current] << " " << argv[current+1] << "\n";
+
+
+            m_parsedKeys.push_back(currentParam);
+            ++current;
+            if (current >= argc)
+            {
+                std::cout << "named\n";
+                valid = false;
+                break;
+            }
+            std::vector<std::string> values;
+            std::string currentVal = std::string{argv[current]};
+            values.push_back(currentVal);
+            m_parsedValues.insert(
+                std::pair<std::string, std::vector<std::string>>(
+                    currentParam, values
+                )
+            );
+            ++current;
+
         }
+        // If parsing positional args
+        else
+        {
 
-        std::string arg{argv[ctr]};
+            if (nextPosArg >= m_positionalArgs.size())
+            {
+                std::cout << "bleep\n";
+                valid = false;
+                break;
+            }
 
-        m_parsedKeys.push_back(m_positionalArgs[i]);
-        m_parsedValues.insert(
-            std::pair<std::string, std::vector<std::string>>(
-                m_positionalArgs[i],
-                std::vector<std::string>{arg}
-            )
-        );
-        ++ctr;
+            std::string posArgName = m_positionalArgs.at(nextPosArg);
+            m_parsedKeys.push_back(posArgName);
+
+            std::cout << "Processing argument:\n";
+            std::cout << posArgName << " = " << currentParam << "\n";
+
+            std::vector<std::string> values;
+            values.push_back(currentParam);
+            m_parsedValues.insert(
+                std::pair<std::string, std::vector<std::string>>(
+                    posArgName,
+                    values
+                )
+            );
+            ++nextPosArg;
+            ++current;
+        }
     }
+
+    // Check if all positional args were found
+    if (nextPosArg != m_positionalArgs.size())
+    {
+        std::cout << "pos args missing\n";
+        valid = false;
+    }
+
+    // Check if all required args were included
+    /*
+    for (const auto &namedArg : m_namedArgs)
+    {
+        if (!m_namedArgsSettings.find(namedArg)->second->optional)
+        {
+            if
+        }
+    }*/
+
+    if (!valid)
+        printUsageMessage(argc, argv);
 
     return *this;
 }
@@ -151,7 +232,7 @@ void ArgumentParser::printUsageMessage(int argc, char *argv[]) const
         std::cout << " " << (optional ? "[" : "");
         std::cout << argument.getLongOptionName();
         std::cout << " " << argument.getVarName();
-        std::cout << (optional ? "]" : "") << " ";
+        std::cout << (optional ? "]" : "");
     }
 
     for (const auto &posArg : m_positionalArgs)
