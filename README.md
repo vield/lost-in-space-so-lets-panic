@@ -19,7 +19,7 @@ libraries -- just download the code, compile it and run.
 * `make`
 * `g++` with support for C++14
 * A dictionary file with one dictionary word per line (e.g. the one in
-  `/usr/share/dict/Words`, if that exists on your system)
+  `/usr/share/dict/words`, if that exists on your system)
 
 
 ## FIXME list
