@@ -12,28 +12,32 @@
 /**
     Define a parameter to parse.
 
-    @name   Identifier for the parameter. If the name starts with a dash ("-"),
+    @name  Identifier for the parameter. If the name starts with a dash ("-"),
     it is interpreted as a named parameter (e.g. "./your_program --fileName
     input.txt"), otherwise it is added to the positional parameter list.
+    @optional  If the parameter is required, parseArguments() will fail if
+    it isn't present.
+    @numValues  How many values the parameter should get.
 */
-void ArgumentParser::addArgument(std::string name, bool optional)
+void ArgumentParser::addArgument(std::string name, bool optional, unsigned int numValues)
 {
     bool isNamed = name.find("-") == 0;
 
-    std::vector<std::string> emptyVector;
-    m_parsedValues.insert(std::pair<std::string, std::vector<std::string>>(name, emptyVector));
+    Argument argument{name, optional, numValues};
 
     if (isNamed)
     {
         m_namedArgs.insert(name);
-        Argument argument{name, optional};
-        m_namedArgsSettings.insert(std::pair<std::string, Argument>(
-            name, argument
-        ));
+        m_arguments.insert(std::make_pair(name, argument));
     }
     else
     {
+        if (numValues == 0)
+        {
+            throw std::invalid_argument("Positional argument must take at least one value!");
+        }
         m_positionalArgs.push_back(name);
+        m_arguments.insert(std::make_pair(name, argument));
     }
 }
 
@@ -121,7 +125,7 @@ ArgumentParser& ArgumentParser::parseArguments(int argc, char *argv[])
     /*
     for (const auto &namedArg : m_namedArgs)
     {
-        if (!m_namedArgsSettings.find(namedArg)->second->optional)
+        if (!m_arguments.find(namedArg)->second->optional)
         {
             if
         }
@@ -208,7 +212,7 @@ void ArgumentParser::printUsageMessage(int argc, char *argv[]) const
 
     for (const auto &name : m_namedArgs)
     {
-        Argument argument = m_namedArgsSettings.find(name)->second;
+        Argument argument = m_arguments.find(name)->second;
         bool optional = argument.isOptional();
 
         std::cout << " " << (optional ? "[" : "");
