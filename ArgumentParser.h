@@ -45,7 +45,7 @@ public:
     }
     void addArgument(std::string name, bool optional=false);
     ArgumentParser& parseArguments(int argc, char *argv[]);
-    const bool hasValue(std::string arg) const;
+    bool hasValue(std::string arg) const;
     const std::vector<std::string> getValue(std::string arg) const;
     const std::vector<std::string> getParsedKeys() const;
     void printUsageMessage(int argc, char *argv[]) const;

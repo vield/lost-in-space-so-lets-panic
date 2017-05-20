@@ -64,7 +64,7 @@ ArgumentParser& ArgumentParser::parseArguments(int argc, char *argv[])
 
     bool inNamedArgs = true;
 
-    int nextPosArg = 0;
+    unsigned int nextPosArg = 0;
 
     // Parse named arguments
     while (current < argc)
@@ -77,11 +77,6 @@ ArgumentParser& ArgumentParser::parseArguments(int argc, char *argv[])
         // If parsing named args
         if (inNamedArgs)
         {
-
-            std::cout << "Processing argument:\n";
-            std::cout << argv[current] << " " << argv[current+1] << "\n";
-
-
             m_parsedKeys.push_back(currentParam);
             ++current;
             if (current >= argc)
@@ -90,14 +85,8 @@ ArgumentParser& ArgumentParser::parseArguments(int argc, char *argv[])
                 valid = false;
                 break;
             }
-            std::vector<std::string> values;
             std::string currentVal = std::string{argv[current]};
-            values.push_back(currentVal);
-            m_parsedValues.insert(
-                std::pair<std::string, std::vector<std::string>>(
-                    currentParam, values
-                )
-            );
+            m_parsedValues[currentParam] = std::vector<std::string>{currentVal};
             ++current;
 
         }
@@ -115,17 +104,7 @@ ArgumentParser& ArgumentParser::parseArguments(int argc, char *argv[])
             std::string posArgName = m_positionalArgs.at(nextPosArg);
             m_parsedKeys.push_back(posArgName);
 
-            std::cout << "Processing argument:\n";
-            std::cout << posArgName << " = " << currentParam << "\n";
-
-            std::vector<std::string> values;
-            values.push_back(currentParam);
-            m_parsedValues.insert(
-                std::pair<std::string, std::vector<std::string>>(
-                    posArgName,
-                    values
-                )
-            );
+            m_parsedValues[posArgName] = std::vector<std::string>{currentParam};
             ++nextPosArg;
             ++current;
         }
@@ -168,9 +147,9 @@ const std::vector<std::string> ArgumentParser::getValue(std::string arg) const
 }
 
 
-const bool ArgumentParser::hasValue(std::string arg) const
+bool ArgumentParser::hasValue(std::string arg) const
 {
-    return false;
+    return m_parsedValues.find(arg) != m_parsedValues.end();
 }
 
 
@@ -183,7 +162,7 @@ const std::vector<std::string> ArgumentParser::getParsedKeys() const
 namespace {
     inline std::string &trimDashesFromStart(std::string &s)
     {
-        int eraseUntil = 0;
+        unsigned int eraseUntil = 0;
         while (eraseUntil < s.length() &&
                s[eraseUntil] == '-')
         {
@@ -220,6 +199,9 @@ std::string Argument::getVarName(const std::string argName) const
 
 void ArgumentParser::printUsageMessage(int argc, char *argv[]) const
 {
+    // Silence warning about unused param
+    (void)argc;
+
     char *programName = argv[0];
 
     std::cout << "Usage: " << programName;
@@ -241,96 +223,4 @@ void ArgumentParser::printUsageMessage(int argc, char *argv[]) const
     }
 
     std::cout << "\n";
-}
-
-
-
-/**
-    Simple test code that requires a manual review of the results.
-
-    Only tests cases relevant to the anagram solver (this is not
-    yet a general-purpose argument parser).
-*/
-
-void testArguments(std::string description, int argc, char *argv[])
-{
-    // Initialise parser as it would be initialised for the anagram solver
-    ArgumentParser parser;
-    parser.addArgument("word");
-    parser.addArgument("--filename", true);
-
-    // Print header
-    std::cout << "\n" << description << "\n";
-    for (int i = 0; i < description.length(); ++i)
-    {
-        std::cout << "-";
-    }
-    std::cout << "\n";
-    std::cout << "parser.parseArguments(" << argc << ", {";
-    for (int i = 0; i < argc; ++i)
-    {
-        std::cout << "\"" << argv[i] << "\"";
-        if (i != argc - 1) std::cout << ", ";
-    }
-    std::cout << "});\n\n---\n";
-
-    // Run test
-    // This may also print other stuff
-    parser.parseArguments(argc, argv);
-    std::cout << "---\n";
-
-    // Print variables
-    std::cout << "word: ";
-    auto wordValue = parser.getValue("word");
-    for (int i = 0; i < wordValue.size(); ++i)
-    {
-        std::cout << wordValue.at(i);
-        if (i != wordValue.size() - 1) std::cout << ", ";
-    }
-    std::cout << "\n";
-
-    std::cout << "--filename: ";
-    auto fileNameValue = parser.getValue("--filename");
-    for (int i = 0; i < fileNameValue.size(); ++i)
-    {
-        std::cout << wordValue.at(i);
-        if (i != fileNameValue.size() - 1) std::cout << ", ";
-    }
-    std::cout << "\n";
-
-    std::cout << "\n";
-}
-
-int main()
-{
-    char programName[] = "./programName";
-
-    char *argv_noArguments[] = {programName};
-    testArguments(
-        "Called without arguments",
-        1, argv_noArguments
-    );
-
-    char word[] = "lost in space";
-    char *argv_justWord[] = {programName, word};
-    testArguments(
-        "Called with just the word",
-        2, argv_justWord
-    );
-
-    char fileNameOpt[] = "--filename";
-    char fileName[] = "/path/to/file.txt";
-    char *argv_wordAndFileName[] = {programName, word, fileNameOpt, fileName};
-    testArguments(
-        "Called with word and filename",
-        4, argv_wordAndFileName
-    );
-
-    char *argv_fileNameAndWord[] = {programName, fileNameOpt, fileName, word};
-    testArguments(
-        "Called with filename and word",
-        4, argv_fileNameAndWord
-    );
-
-    return 0;
 }

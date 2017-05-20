@@ -3,11 +3,11 @@ CC=g++
 CFLAGS=-Wextra -Wall -Werror -std=c++14
 
 anagrams:
-	$(CC) $(CFLAGS) main.cpp anagram.cpp arguments.cpp -I . -o anagrams
+	$(CC) $(CFLAGS) main.cpp anagram.cpp ArgumentParser.cpp -I . -o anagrams
 
 test:
-	$(CC) -std=c++14 ArgumentParser.cpp -I . -o argTest
-	./argTest
+	$(CC) $(CFLAGS) ArgumentParser.cpp test.cpp -I . -o tests
+	./tests
 
 clean:
-	rm -f anagrams
+	rm -f anagrams tests
