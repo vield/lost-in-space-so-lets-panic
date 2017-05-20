@@ -16,10 +16,15 @@ Usage:
 The anagram solver is self-contained in that it doesn't rely on any external
 libraries -- just download the code, compile it and run.
 
+To compile it, you'll need:
+
 * `make`
 * `g++` with support for C++14
+
+To run it, you'll also need:
+
 * A dictionary file with one dictionary word per line (e.g. the one in
-  `/usr/share/dict/words`, if that exists on your system)
+  `/usr/share/dict/words`, if that exists on your system).
 
 
 ## FIXME list
