@@ -1,4 +1,5 @@
 #include <map>
+#include <queue>
 #include <set>
 #include <string>
 #include <vector>
@@ -23,16 +24,19 @@ public:
     }
     bool isOptional() const
     { return m_optional; }
-    std::string getLongOptionName()
+    std::string getLongOptionName() const
     { return m_longOptionName; }
-    std::string getVarName()
+    std::string getVarName() const
     { return m_varName; }
+    unsigned int getNumValues() const
+    { return m_numValues; }
 };
 
 
 class ArgumentParser
 {
 private:
+    // FIXME this should probably be a set of sorts, not a vector
     std::vector<std::string> m_parsedKeys;
     std::map<std::string, std::vector<std::string>> m_parsedValues;
     std::vector<std::string> m_positionalArgs;
@@ -40,6 +44,8 @@ private:
     std::map<std::string, Argument> m_arguments;
 
     std::string capitalize(const std::string argName) const;
+    bool _checkAllRequiredParamsGiven();
+    bool _parseValues(std::string argName, std::queue<std::string> &args);
 public:
     ArgumentParser()
     {
@@ -54,5 +60,5 @@ public:
     bool hasValue(std::string arg) const;
     const std::vector<std::string> getValue(std::string arg) const;
     const std::vector<std::string> getParsedKeys() const;
-    void printUsageMessage(int argc, char *argv[]) const;
+    void printUsageMessage(std::string programName) const;
 };
